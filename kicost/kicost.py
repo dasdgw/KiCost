@@ -49,7 +49,12 @@ distributors = {
         'label': 'Newark',
         'order_cols': ['part_num', 'purch', 'refs'],
         'order_delimiter': ','
-    }
+    },
+    'default': {
+        'label': 'Default',
+        'order_cols': ['part_num', 'purch', 'refs'],
+        'order_delimiter': ','
+    },
 }
 
 dbg_level = None
@@ -270,6 +275,14 @@ def create_spreadsheet(parts, spreadsheet_filename):
                 'align': 'center',
                 'valign': 'vcenter',
                 'bg_color': '#303030'
+            }),
+            'default' : workbook.add_format({
+                'font_size': 14,
+                'font_color': 'white',
+                'bold': True,
+                'align': 'center',
+                'valign': 'vcenter',
+                'bg_color': '#808080'  # default is gray.
             }),
             'digikey' : workbook.add_format({
                 'font_size': 14,
@@ -912,6 +925,12 @@ def add_dist_to_worksheet(wks, wrk_formats, start_row, start_col,
                          delimiter=order_delimiter[col_tag])
 
     return start_col + num_cols  # Return column following the globals so we know where to start next set of cells.
+    
+    
+def get_default_price_tiers(html_tree):
+    '''Get the pricing tiers from the default parsed tree.'''
+    price_tiers = {}
+    return price_tiers
 
 
 def get_digikey_price_tiers(html_tree):
@@ -926,8 +945,9 @@ def get_digikey_price_tiers(html_tree):
             except IndexError:  # Happens when there's no <td> in table row.
                 continue
     except AttributeError:
-        # This happens when no pricing info is found in the tree.
-        return price_tiers  # Return empty price tiers.
+        # This happens when no pricing info is found in the tree,
+        # so see if the tree contains some default pricing.
+        return get_default_price_tiers(html_tree)
     return price_tiers
 
 
@@ -945,8 +965,9 @@ def get_mouser_price_tiers(html_tree):
             except (TypeError, AttributeError, ValueError):
                 continue
     except AttributeError:
-        # This happens when no pricing info is found in the tree.
-        return price_tiers  # Return empty price tiers.
+        # This happens when no pricing info is found in the tree,
+        # so see if the tree contains some default pricing.
+        return get_default_price_tiers(html_tree)
     return price_tiers
 
 
@@ -977,8 +998,9 @@ def get_newark_price_tiers(html_tree):
             except (TypeError, AttributeError, ValueError):
                 continue
     except AttributeError:
-        # This happens when no pricing info is found in the tree.
-        return price_tiers  # Return empty price tiers.
+        # This happens when no pricing info is found in the tree,
+        # so see if the tree contains some default pricing.
+        return get_default_price_tiers(html_tree)
     return price_tiers
 
 
@@ -991,6 +1013,11 @@ def digikey_part_is_reeled(html_tree):
                       class_='product-details-reel-pricing') is not None:
         return True
     return False
+
+
+def get_default_part_num(html_tree):
+    '''Get the default part number.'''
+    return ''
 
 
 def get_digikey_part_num(html_tree):
@@ -1022,6 +1049,11 @@ def get_newark_part_num(html_tree):
         return part_num_str
     except AttributeError:
         return ''
+
+
+def get_default_qty_avail(html_tree):
+    '''Get the default available quantity.'''
+    return 0
 
 
 def get_digikey_qty_avail(html_tree):
@@ -1081,8 +1113,11 @@ def get_part_html_trees(distributors, part):
         get_dist_part_html_tree = getattr(THIS_MODULE,
                                           'get_{}_part_html_tree'.format(dist))
         try:
-            # Use the distributor's catalog number (if available) to get the page.
-            if dist + '#' in fields:
+            if dist + '_pricing' in fields:
+                html_trees[dist] = build_pricing_html_tree(fields[dist + '_pricing'])
+                urls[dist] = ''
+            # Else, use the distributor's catalog number (if available) to get the page.
+            elif dist + '#' in fields:
                 html_trees[dist], urls[dist] = get_dist_part_html_tree(
                     fields[dist + '#'])
             # Else, use the manufacturer's catalog number (if available) to get the page.
@@ -1109,6 +1144,11 @@ class FakeBrowser(URLL.FancyURLopener):
 class PartHtmlError(Exception):
     '''Exception for failed retrieval of an HTML parse tree for a part.'''
     pass
+    
+    
+def get_default_part_html_tree(pn, url=None):
+    '''Find the default HTML page for a part number and return the URL and parse tree.'''
+    return BeautifulSoup('<html></html>'), '' # No HTML tree or URL by default.
 
 
 def get_digikey_part_html_tree(pn, url=None, descend=2):
