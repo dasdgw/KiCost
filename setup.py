@@ -35,7 +35,7 @@ setup(
     long_description=readme + '\n\n' + history,
     author=kicost.__author__,
     author_email=kicost.__email__,
-    url='https://github.com/xesscorp/KiCost',
+    url='https://github.com/dasdgw/KiCost',
 #    packages=['kicost',],
     packages=setuptools.find_packages(),
     entry_points={'console_scripts':['kicost = kicost.__main__:main']},
