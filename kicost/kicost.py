@@ -973,25 +973,6 @@ def get_digikey_price_tiers(html_tree):
 
 
 def get_mouser_price_tiers(html_tree):
-    '''Get the pricing tiers from the parsed tree of the Mouser product page.'''
-    price_tiers = {}
-    try:
-        for tr in html_tree.find('div', class_='PriceBreaks').find_all('tr'):
-            try:
-                qty = int(re.sub('[^0-9]', '',
-                                 tr.find('td',
-                                         class_='PriceBreakQuantity').a.text))
-                unit_price = tr.find('td', class_='PriceBreakPrice').span.text
-                price_tiers[qty] = float(re.sub('[^0-9\.]', '', unit_price))
-            except (TypeError, AttributeError, ValueError, IndexError):
-                continue
-    except AttributeError:
-        # This happens when no pricing info is found in the tree.
-        return price_tiers  # Return empty price tiers.
-    return price_tiers
-
-
-def get_mouser_price_tiers(html_tree):
     '''Get the pricing tiers from the parsed tree of the Newark product page.'''
     price_tiers = {}
     try:
