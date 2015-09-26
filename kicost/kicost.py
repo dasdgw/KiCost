@@ -1010,9 +1010,14 @@ def get_mouser_price_tiers(html_tree):
         qtys_prices = list(zip(qty_strs, price_strs))
         for qty_str, price_str in qtys_prices:
             try:
-                qty = re.search('(\s*)([0-9,]+)', qty_str).group(2)
+                qty = re.search('(\s*)([0-9\.,]+)', qty_str).group(2)
                 qty = int(re.sub('[^0-9]', '', qty))
-                price_tiers[qty] = float(re.sub('[^0-9\.]', '', price_str))
+                # convert following notations to float
+                # 2,000.00 2.000,00 2000.00 2000,00
+                price_str = re.sub('[^0-9\.,]','',price_str)
+                price_str = price_str.replace(',', '.')
+                price_str = price_str.replace('.', '',price_str.count('.')-1)
+                price_tiers[qty] = float(price_str)
             except (TypeError, AttributeError, ValueError, IndexError):
                 continue
     except AttributeError:
