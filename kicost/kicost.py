@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 # MIT license
 # 
 # Copyright (C) 2015 by XESS Corporation
@@ -347,11 +350,11 @@ def create_spreadsheet(parts, spreadsheet_filename):
                 'font_size': 13,
                 'font_color': 'red',
                 'bold': True,
-                'num_format': '$#,##0.00',
+                'num_format': u'€#,##0.00',
                 'valign': 'vcenter',
             }),
             'best_price': workbook.add_format({'bg_color': '#80FF80', }),
-            'currency': workbook.add_format({'num_format': '$#,##0.00'}),
+            'currency': workbook.add_format({'num_format': u'€#,##0.00'}),
             'centered_text': workbook.add_format({'align': 'center'}),
         }
 
@@ -543,7 +546,7 @@ def add_globals_to_worksheet(wks, wrk_formats, start_row, start_col,
         'unit_price': {
             'col': 7,
             'level': 0,
-            'label': 'Unit$',
+            'label': u'Unit€',
             'width': None,
             'comment':
             'Minimum unit price for each part across all distributors.'
@@ -551,7 +554,7 @@ def add_globals_to_worksheet(wks, wrk_formats, start_row, start_col,
         'ext_price': {
             'col': 8,
             'level': 0,
-            'label': 'Ext$',
+            'label': u'Ext€',
             'width': 15,  # Displays up to $9,999,999.99 without "###".
             'comment':
             'Minimum extended price for each part across all distributors.'
@@ -677,14 +680,14 @@ def add_dist_to_worksheet(wks, wrk_formats, start_row, start_col,
         'unit_price': {
             'col': 2,
             'level': 2,
-            'label': 'Unit$',
+            'label': u'Unit€',
             'width': None,
             'comment': 'Unit price of each part from this distributor.'
         },
         'ext_price': {
             'col': 3,
             'level': 0,
-            'label': 'Ext$',
+            'label': u'Ext€',
             'width': 15,  # Displays up to $9,999,999.99 without "###".
             'comment':
             '(Unit Price) x (Purchase Qty) of each part from this distributor.'
@@ -973,7 +976,7 @@ def get_digikey_price_tiers(html_tree):
 
 
 def get_mouser_price_tiers(html_tree):
-    '''Get the pricing tiers from the parsed tree of the Newark product page.'''
+    '''Get the pricing tiers from the parsed tree of the Mouser product page.'''
     price_tiers = {}
     try:
         qty_strs = []
@@ -1029,9 +1032,12 @@ def get_newark_price_tiers(html_tree):
         qtys_prices = list(zip(qty_strs, price_strs))
         for qty_str, price_str in qtys_prices:
             try:
-                qty = re.search('(\s*)([0-9,]+)', qty_str).group(2)
+                qty = re.search('(\s*)([0-9\.,]+)', qty_str).group(2)
                 qty = int(re.sub('[^0-9]', '', qty))
-                price_tiers[qty] = float(re.sub('[^0-9\.]', '', price_str))
+                price_str = re.sub('[^0-9\.,]','',price_str)
+                price_str = price_str.replace(',', '.')
+                price_str = price_str.replace('.', '',price_str.count('.')-1)
+                price_tiers[qty] = float(price_str)
             except (TypeError, AttributeError, ValueError):
                 continue
     except AttributeError:
@@ -1075,7 +1081,7 @@ def get_newark_part_num(html_tree):
         part_num_str = html_tree.find('div',
                                       id='productDescription').find(
                                           'ul').find_all('li')[1].text
-        part_num_str = re.search('(Newark Part No.:)(\s*)([^\s]*)',
+        part_num_str = re.search('(Bestellnummer:)(\s*)([^\s]*)',
                                  part_num_str, re.IGNORECASE).group(3)
         return part_num_str
     except AttributeError:
@@ -1234,12 +1240,12 @@ def get_digikey_part_html_tree(pn, url=None, descend=2):
 
     # Use the part number to lookup the part using the site search function, unless a starting url was given.
     if url is None:
-        url = 'http://www.digikey.com/scripts/DkSearch/dksus.dll?WT.z_header=search_go&lang=en&keywords=' + urlquote(
+        url = 'http://www.digikey.de/scripts/DkSearch/dksus.dll?WT.z_header=search_go&lang=en&keywords=' + urlquote(
             pn,
             safe='')
-        #url = 'http://www.digikey.com/product-search/en?KeyWords=' + urlquote(pn,safe='') + '&WT.z_header=search_go'
+        #url = 'http://www.digikey.de/product-search/en?KeyWords=' + urlquote(pn,safe='') + '&WT.z_header=search_go'
     elif url[0] == '/':
-        url = 'http://www.digikey.com' + url
+        url = 'http://www.digikey.de' + url
 
     # Open the URL, read the HTML from it, and parse it into a tree structure.
     url_opener = FakeBrowser()
@@ -1350,13 +1356,13 @@ def get_mouser_part_html_tree(pn, url=None):
 
     # Use the part number to lookup the part using the site search function, unless a starting url was given.
     if url is None:
-        url = 'http://www.mouser.com/Search/Refine.aspx?Keyword=' + urlquote(
+        url = 'http://www.mouser.de/Search/Refine.aspx?Keyword=' + urlquote(
             pn,
             safe='')
     elif url[0] == '/':
-        url = 'http://www.mouser.com' + url
+        url = 'http://www.mouser.de' + url
     elif url.startswith('..'):
-        url = 'http://www.mouser.com/Search/' + url
+        url = 'http://www.mouser.de/Search/' + url
 
     # Open the URL, read the HTML from it, and parse it into a tree structure.
     url_opener = FakeBrowser()
@@ -1397,16 +1403,16 @@ def get_mouser_part_html_tree(pn, url=None):
 
 def get_newark_part_html_tree(pn, url=None):
     '''Find the Newark HTML page for a part number and return the URL and parse tree.'''
-
+    #pdb.set_trace()
     # Use the part number to lookup the part using the site search function, unless a starting url was given.
     if url is None:
-        url = 'http://www.newark.com/webapp/wcs/stores/servlet/Search?catalogId=15003&langId=-1&storeId=10194&gs=true&st=' + urlquote(
+        url = 'http://de.farnell.com/webapp/wcs/stores/servlet/Search?catalogId=15001&langId=-3&storeId=10161&gs=true&st=' + urlquote(
             pn,
             safe='')
     elif url[0] == '/':
-        url = 'http://www.newark.com' + url
+        url = 'http://de.farnell.com/' + url
     elif url.startswith('..'):
-        url = 'http://www.newark.com/Search/' + url
+        url = 'http://de.farnell.com/Search' + url
 
     # Open the URL, read the HTML from it, and parse it into a tree structure.
     url_opener = FakeBrowser()
